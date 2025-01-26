@@ -13,6 +13,32 @@ provider "google" {
 	zone = "europe-central2-a"
 }
 
+# Create service account
+resource "google_service_account" "beans_service_account" {
+  account_id   = "beans-service-account"
+  display_name = "Beans Service Account"
+}
+
+# Assign roles to service account
+resource "google_project_iam_member" "beans_browser_role" {
+  project = "learn-vertex-pipelines"
+  role    = "roles/browser"
+  member  = "serviceAccount:${google_service_account.beans_service_account.email}"
+}
+
+resource "google_project_iam_member" "beans_aiplatform_user_role" {
+  project = "learn-vertex-pipelines"
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.beans_service_account.email}"
+}
+
+resource "google_project_iam_member" "beans_aiplatform_service_account_user_role" {
+  project = "learn-vertex-pipelines"
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.beans_service_account.email}"
+}
+
+
 # Create the VPC network
 resource "google_compute_network" "vpc_network_dominik" {
   name                            = "vpc-network-dominik-implementation"
@@ -78,6 +104,9 @@ resource "google_workbench_instance" "my_workbench" {
         external_ip = google_compute_address.compute_address_dominik.address
       }
     }
+    service_accounts {
+      email = google_service_account.beans_service_account.email
+    }
     metadata = {
       idle-timeout-seconds = "1800"  # 3 hours in seconds
     }
@@ -108,7 +137,8 @@ data "google_iam_policy" "iam_policy_bucket" {
   binding {
     role = "roles/storage.admin"
     members = [
-      "user:dominik.vertex.ai@gmail.com"
+      "user:dominik.vertex.ai@gmail.com",
+      "serviceAccount:${google_service_account.beans_service_account.email}"
     ]
   }
   binding {
